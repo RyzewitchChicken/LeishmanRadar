@@ -64,10 +64,10 @@
             <h1 class="mt-4">Dashboard</h1>
             <div class="bar" style="float: right;">
                 <form>
-                    <input type="date" class="form-control" placeholder="Select">
-                </form>
-                <form>
-                    <input type="date" class="form-control" placeholder="Select">
+                    <input id="start_date" name="start_date" type="date" class="form-control" placeholder="Select" >
+                  </form>
+                  <form>
+                    <input id="end_date" name="end_date" type="date" class="form-control" placeholder="Select">
                 </form>
                 <button type="button" class="form-control reportbutt">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard-data" viewBox="0 0 16 16">
@@ -82,13 +82,16 @@
                         <option value="2">2 Semanas</option>
                         <option value="option3">3 Semanas</option>
                       </select>
-                <button type="button"  id="myButton" style="display: none;" class="form-control" >Prediccion</button>        
+                <button type="button"  id="myButton" style="display: none;" class="form-control" onclick="updateGraph()">Prediccion</button>        
                          
                       
 
                     
             </div>
 
+            <div id="chart" class="graph"></div>
+  
+          
             <div class=" casetable">
                 <table class="table">
                     <thead class="thead-dark">
@@ -173,11 +176,26 @@
       });
     });
   </script>
-
-
-
-    
-
+  <!-- Script de Plotly -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script>
+    // Initial chart creation
+    var start_date = '';
+        var end_date = '';
+        $.getJSON('/grafico', function(data) {
+            Plotly.newPlot('chart', data.data, data.layout);
+        });
+    // Update chart on date range change
+    $('#start_date, #end_date').change(function() {
+        start_date = $('#start_date').val();
+        end_date = $('#end_date').val();
+        console.log(start_date)
+        $.getJSON('/chart', {'start_date': start_date, 'end_date': end_date}, function(data) {
+            Plotly.newPlot('chart', data.data, data.layout);
+        });
+    });
+</script>
+  
 </body>
 
 </html>

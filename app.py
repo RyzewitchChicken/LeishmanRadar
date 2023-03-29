@@ -3,10 +3,17 @@ import pickle
 import json
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
+import plotly.graph_objs as go
+import plotly
+import plotly.express as xp
+import plotly.offline as pyo
 import database as dbase
 from  user import User
 from prediction import Prediction
 from bson.json_util import dumps
+
+from datetime import datetime, timedelta
 
 
 db=dbase.dbConnection()
@@ -49,7 +56,11 @@ def getdata():
 def index():
     predictions=db['prediction']
     casesdata=predictions.find()
-    return render_template('index.html', predictions=casesdata)
+
+    graphJSON=grafico()
+    #data = GraficoInteractivo('2015-12-27','2022-10-02')
+
+    return render_template('index.html', predictions=casesdata,graphJSON=graphJSON)
 
 
 @app.route('/button', methods=['POST'])
@@ -62,8 +73,41 @@ def get_button_status():
     print(selected_option)
     return jsonify({'show_button': show_button})
 
+@app.route('/grafico')
+def grafico():
+    collection = db['prediction']
+
+    data = []
+    for item in collection.find():
+        data.append(item)
+    x = [item['data_iniSE'] for item in data]
+    y = [item['casos'] for item in data]
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=x, y=y, mode='lines'))
+    
+    graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+    return graphJSON
 
 
+@app.route('/chart', methods=['GET','POST'])
+def chart():
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    data = db.prediction.find({'data_iniSE': {'$gte': datetime.strptime(start_date, '%Y-%m-%d'), '$lte': datetime.strptime(end_date, '%Y-%m-%d')}})
+    x = []
+    y = []
+    for item in data:
+        x.append(item['data_iniSE'])
+        y.append(item['casos'])
+    # Create the chart object
+    fig = go.Figure(
+        data=[go.Scatter(x=x, y=y)],
+        layout=go.Layout(title='Chart')
+    )
+
+    # Return the chart data as JSON
+    return fig.to_json()
 
 ## Login View
 @app.route('/')
