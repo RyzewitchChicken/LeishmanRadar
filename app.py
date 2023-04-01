@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, Response, jsonify, redirect, url_for, session
+from flask import Flask, request, render_template, Response, jsonify, redirect, url_for, session,make_response, send_file,render_template_string
 import pickle
 import json
 import numpy as np
@@ -12,9 +12,11 @@ import database as dbase
 from  user import User
 from prediction import Prediction
 from bson.json_util import dumps
-
+from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
-
+from xhtml2pdf import pisa
+import io
+import base64
 
 db=dbase.dbConnection()
 
@@ -23,31 +25,28 @@ app.secret_key = "mysecretkey"
 
 model=pickle.load(open('rf_model.pkl','rb'))
 
-"""@app.route('/prediction',methods=['POST'])
-def prediction():
-    event = json.loads(request.data)
-    values=event['values']
-    print(values)
-    
-    pre=np.array(values)
-    res=model.predict(pre)
-    print(res)
-    return str(res[:3])"""
 
 
 @app.route('/prediction/<int:npred>',methods=['GET'])
 def getnpred(npred):
-    return str(npred)
+    datapred=[]
+    prediction_ahead=db['prediction_ahead']
+    for cs in prediction_ahead.find({},{'_id':False}):
+        values=list(cs.values())
+        datapred.append(values)
+    res=model.predict(datapred)
+    
+    return list(res[:npred])
 
 ## Prediccion data
 @app.route('/data')
 def getdata():
     datapred=[]
-    predictions=db['prediction']
-    for cs in predictions.find({},{'_id':False, 'data_iniSE':False}):
+    prediction_ahead=db['prediction_ahead']
+    for cs in prediction_ahead.find({},{'_id':False}):
         values=list(cs.values())
         datapred.append(values)
-    print(datapred[-6:])
+    
     return jsonify(datapred)
 
 
@@ -59,8 +58,53 @@ def index():
 
     graphJSON=grafico()
     #data = GraficoInteractivo('2015-12-27','2022-10-02')
-
+    pred=getnpred(1)
     return render_template('index.html', predictions=casesdata,graphJSON=graphJSON)
+
+
+
+@app.route('/generate-pdf/<int:npred>',methods=['POST'])
+def generate_pdf(npred):
+    collection=db['prediction']
+    last_data = collection.find_one(sort=[("data_iniSE", -1)])
+    init_Date=last_data.get('data_iniSE')
+    init_case=[last_data.get('casos')]
+    # process the data here
+    weekly_dates = [init_Date + timedelta(weeks=x) for x in range(npred+1)]
+    print(weekly_dates)
+    pred=getnpred(npred)
+    print(pred)
+
+    x=weekly_dates
+    y=init_case + pred
+    fig = go.Figure(layout=go.Layout(title='Predicciones',yaxis=dict(title='n° casos'),xaxis=dict(title='Fecha')))    
+    fig.add_trace(go.Scatter(x=x, y=y))
+
+    img_buf = io.BytesIO()
+    fig.write_image(img_buf, format='png')
+    img_buf.seek(0)
+    Date_List = [x.strftime('%Y-%m-%d') for x in x]
+    # Convert the image buffer to a base64-encoded string
+    img_data = base64.b64encode(img_buf.getvalue()).decode('utf-8')
+    table_data = [['Fecha', 'Prediccion']] + list(zip(Date_List, y))
+    # Generate the HTML content for the PDF
+    date = datetime.now()
+    stdate=date.strftime( '%Y-%m-%d')
+    rendered_html = render_template_string("{% extends 'content.html' %}", table_data=table_data, img_data=img_data,stdate=stdate)
+    # Generate the PDF
+    pdf_buf = io.BytesIO()
+    pisa.CreatePDF(io.StringIO(rendered_html), dest=pdf_buf)
+
+    # Set the buffer's position to the beginning
+    pdf_buf.seek(0)
+
+    # Return the PDF file as a Flask response
+    response = make_response(pdf_buf.getvalue())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=plot.pdf'
+    return response
+
+
 
 
 @app.route('/button', methods=['POST'])
@@ -73,6 +117,31 @@ def get_button_status():
     print(selected_option)
     return jsonify({'show_button': show_button})
 
+@app.route('/graficopred/<int:npred>',methods=['GET','POST'])
+def graficopred(npred):
+    collection=db['prediction']
+    last_data = collection.find_one(sort=[("data_iniSE", -1)])
+    init_Date=last_data.get('data_iniSE')
+    init_case=[last_data.get('casos')]
+    # process the data here
+    weekly_dates = [init_Date + timedelta(weeks=x) for x in range(npred+1)]
+    print(weekly_dates)
+    pred=getnpred(npred)
+    print(pred)
+    
+
+    x=weekly_dates
+    y=init_case + pred
+    print(y)
+    #trace=go.Scatter(x=x, y=y, mode='lines')
+    fig = go.Figure(
+        data=[go.Scatter(x=x, y=y, mode='lines+markers', name='prediccion')]
+        )
+    
+    # Update the chart in the HTML and return it
+    return fig.to_json()
+
+
 @app.route('/grafico')
 def grafico():
     collection = db['prediction']
@@ -82,9 +151,9 @@ def grafico():
         data.append(item)
     x = [item['data_iniSE'] for item in data]
     y = [item['casos'] for item in data]
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=x, y=y, mode='lines'))
+    print(y)
+    fig = go.Figure(layout=go.Layout(title='Número de casos de Leishmaniasis 2018 - 2022',yaxis=dict(title='n° casos'),xaxis=dict(title='Semana Epidemiologica')))
+    fig.add_trace(go.Scatter(x=x, y=y, mode='lines',name='casos'))
     
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
     return graphJSON
@@ -103,9 +172,8 @@ def chart():
     # Create the chart object
     fig = go.Figure(
         data=[go.Scatter(x=x, y=y)],
-        layout=go.Layout(title='Chart')
+        layout=go.Layout(title='Número de casos de Leishmaniasis 2018 - 2022',yaxis=dict(title='n° casos'),xaxis=dict(title='Semana Epidemiologica'))
     )
-
     # Return the chart data as JSON
     return fig.to_json()
 

@@ -72,3 +72,12 @@ margin-left: 0;
   margin-left: auto;
   margin-right: auto;
 }
+
+.reportbutt:disabled {
+  background-color: #Ae1b0c;
+  color: white;
+  
+}
+
+
+
