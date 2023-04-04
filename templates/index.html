@@ -64,7 +64,7 @@
             <h1 class="mt-4">Dashboard</h1>
             <div class="bar" style="float: right;">
                 <form>
-                    <input id="start_date" name="start_date" type="date" class="form-control bg-dark dateinit" placeholder="Fecha Inicial" >
+                    <input id="start_date" name="start_date" style="color:white;" type="date" class="form-control bg-dark dateinit" placeholder="Fecha Inicial" >
                   </form>
                   <form>
                     <input id="end_date" name="end_date" style="color:white;" type="date" class="form-control bg-dark dateend" placeholder="Fecha Final">
@@ -92,6 +92,60 @@
             </div>
 
             <div id="chart" class="graph"></div>
+
+            <div class="row">
+
+              <div class="col-md-4">
+  
+                  <div class="card" style="width: 100px;">
+  
+                      <div class="card-body">
+  
+                          <h5 class="card-title">Card 1</h5>
+  
+                          <p class="card-text">This is the first card.</p>
+  
+                      </div>
+  
+                  </div>
+  
+              </div>
+  
+              <div class="col-md-4">
+  
+                  <div class="card" style="width: 100px;">
+  
+                      <div class="card-body">
+  
+                          <h5 class="card-title">Card 2</h5>
+  
+                          <p class="card-text">This is the second card.</p>
+  
+                      </div>
+  
+                  </div>
+  
+              </div>
+  
+              <div class="col-md-4">
+  
+                  <div class="card" style="width: 100px;">
+  
+                      <div class="card-body">
+  
+                          <h5 class="card-title">Card 3</h5>
+  
+                          <p class="card-text">This is the third card.</p>
+  
+                      </div>
+  
+                  </div>
+  
+              </div>
+  
+          </div>
+  
+  
   
           
             <div class=" casetable">
@@ -141,18 +195,19 @@
 </script>
 <script>
     flatpickr("input[type=date]", {
-        minDate:"2017-01-01",
-        maxDate:"2022-12-31",
+        minDate:"{{ei}}",
+        maxDate:"{{yei}}",
         weekNumbers: true,
         "disable": [
             function(date) {
+                return (date.getDay()!=0)
                 // return true to disable
-                return (date.getDay() === 1 || date.getDay() === 2 );
+                //return (date.getDay() === 1 || date.getDay() === 2 );
 
             }
         ],
         "locale": {
-            "firstDayOfWeek": 0 // start week on Monday
+            "firstDayOfWeek": 0 // start week on Sunday
         }
     });
 </script>

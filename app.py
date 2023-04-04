@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template, Response, jsonify, redirect, url_for, session,make_response, send_file,render_template_string
+from flask_login import login_manager,login_required, current_user
 import pickle
 import json
 import numpy as np
@@ -12,6 +13,7 @@ import database as dbase
 from  user import User
 from prediction import Prediction
 from bson.json_util import dumps
+from bson.objectid import ObjectId
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 from xhtml2pdf import pisa
@@ -23,9 +25,8 @@ db=dbase.dbConnection()
 app= Flask(__name__)
 app.secret_key = "mysecretkey"
 
+
 model=pickle.load(open('rf_model.pkl','rb'))
-
-
 
 @app.route('/prediction/<int:npred>',methods=['GET'])
 def getnpred(npred):
@@ -52,14 +53,45 @@ def getdata():
 
 ## Dashboard
 @app.route('/dashboard', methods=['GET', 'POST'])
+##@require_login
 def index():
-    predictions=db['prediction']
-    casesdata=predictions.find()
+    if 'logged_in' in session and session['logged_in']:
+        predictions=db['prediction']
+        casesdata=predictions.find()
+        ei=predictions.find_one({},{'_id':False,'casos':False})
+        ei=ei.get("data_iniSE")
+        yei = predictions.find_one(sort=[("data_iniSE", -1)])
+        yei=yei.get("data_iniSE")
+        graphJSON=grafico()
+        #data = GraficoInteractivo('2015-12-27','2022-10-02')
 
-    graphJSON=grafico()
-    #data = GraficoInteractivo('2015-12-27','2022-10-02')
-    pred=getnpred(1)
-    return render_template('index.html', predictions=casesdata,graphJSON=graphJSON)
+        # Query MongoDB for documents with matching year
+        documents=[]
+        # Convert the MongoDB cursor to a list of documents
+        for cs in predictions.find({
+                                         "$expr": {
+                                          "$eq": [
+                                           {
+                                            "$year": "$data_iniSE"
+                                           },
+                                           2020
+                                          ]
+                                         }
+                                        },{
+                                            "_id":False,
+                                            "data_iniSE":False
+                                        }
+                                        ):
+            values=list(cs.values())
+            documents.append(values)
+        
+        print(documents)
+        pred=getnpred(1)
+        return render_template('index.html', predictions=casesdata,graphJSON=graphJSON,yei=yei,ei=ei)
+    else:
+        return redirect(url_for('login'))
+
+
 
 
 
@@ -222,22 +254,21 @@ def loginin():
         user = users.find_one({'username': username})
         if user:
             if (user['password'] == password):
+                session["logged_in"]=True
                 session['username'] = username
                 return redirect(url_for('index'))
         else:
             error = 'Usuario y/o contraseña incorrectos. Intente de nuevo.'
-            return render_template('login.html', error=error)    
+            return render_template('login.html', error=error)  
+    ##return render_template('login.html')
 
 
 ## Logout
 @app.route('/logout')
 def logout():
+    session['logged_in']=False
     session.pop('username', None)
     return redirect(url_for('login'))
-
-
-
-
 
 @app.errorhandler(404)
 def notFound(error=None):
