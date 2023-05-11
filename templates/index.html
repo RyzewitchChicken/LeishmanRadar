@@ -44,7 +44,6 @@
         
         <div class="list-group list-group-flush">
             <a href="/dashboard" class="list-group-item list-group-item-action bg-light">Dashboard</a>
-            <a href="#" class="list-group-item list-group-item-action bg-light">...</a>
 
         </div>
     </div>
@@ -92,62 +91,10 @@
             </div>
 
             <div id="chart" class="graph"></div>
-
-            <div class="row">
-
-              <div class="col-md-4">
-  
-                  <div class="card" style="width: 100px;">
-  
-                      <div class="card-body">
-  
-                          <h5 class="card-title">Card 1</h5>
-  
-                          <p class="card-text">This is the first card.</p>
-  
-                      </div>
-  
-                  </div>
-  
-              </div>
-  
-              <div class="col-md-4">
-  
-                  <div class="card" style="width: 100px;">
-  
-                      <div class="card-body">
-  
-                          <h5 class="card-title">Card 2</h5>
-  
-                          <p class="card-text">This is the second card.</p>
-  
-                      </div>
-  
-                  </div>
-  
-              </div>
-  
-              <div class="col-md-4">
-  
-                  <div class="card" style="width: 100px;">
-  
-                      <div class="card-body">
-  
-                          <h5 class="card-title">Card 3</h5>
-  
-                          <p class="card-text">This is the third card.</p>
-  
-                      </div>
-  
-                  </div>
-  
-              </div>
-  
-          </div>
+ 
   
   
-  
-          
+          <!--
             <div class=" casetable">
                 <table class="table">
                     <thead class="thead-dark">
@@ -171,8 +118,7 @@
             </div>
 
         </div>
-
-
+        -->
 
 
     </div>
@@ -250,7 +196,10 @@
         $.getJSON('/chart', {'start_date': start_date, 'end_date': end_date}, function(data) {
             Plotly.newPlot('chart', data.data, data.layout);
         });
+        
+        
     });
+    
 </script>
 
 
@@ -263,6 +212,15 @@
     addDataButton.onclick = function() {
         var data = document.getElementById('mySelect').value;
         document.getElementById("reportbutton").disabled = false;
+        console.log('{{otroyei}}')
+        var start_date=document.getElementById("start_date").value;
+        end_date = $('#end_date').val();
+        $.getJSON('/chart', {'start_date': start_date, 'end_date': '{{otroyei}}'}, function(data) {
+            Plotly.newPlot('chart', data.data, data.layout);
+        });
+        document.getElementById("start_date").value='';
+        document.getElementById("end_date").value='';
+        document.getElementById("myButton").style.display="none"
       // Make an AJAX request to the /new-data endpoint
       Plotly.d3.json('/graficopred/'+data, function(data) {
         // Add the new trace to the plot

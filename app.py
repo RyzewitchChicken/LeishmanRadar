@@ -62,6 +62,7 @@ def index():
         ei=ei.get("data_iniSE")
         yei = predictions.find_one(sort=[("data_iniSE", -1)])
         yei=yei.get("data_iniSE")
+        otroyei=yei.strftime( '%Y-%m-%d')
         graphJSON=grafico()
         #data = GraficoInteractivo('2015-12-27','2022-10-02')
 
@@ -87,7 +88,7 @@ def index():
         
         print(documents)
         pred=getnpred(1)
-        return render_template('index.html', predictions=casesdata,graphJSON=graphJSON,yei=yei,ei=ei)
+        return render_template('index.html', predictions=casesdata,graphJSON=graphJSON,yei=yei,ei=ei,otroyei=otroyei)
     else:
         return redirect(url_for('login'))
 
@@ -118,7 +119,7 @@ def generate_pdf(npred):
     Date_List = [x.strftime('%Y-%m-%d') for x in x]
     # Convert the image buffer to a base64-encoded string
     img_data = base64.b64encode(img_buf.getvalue()).decode('utf-8')
-    table_data = [['Fecha', 'Prediccion']] + list(zip(Date_List, y))
+    table_data = [['Fecha', 'Temp. Max.', 'Temp. Min.', 'Temp. Prom.', 'Hum. Max.','Hum. Min.', 'Hum. Prom.', 'Prediccion']] + list(zip(Date_List[1:], y))
     # Generate the HTML content for the PDF
     date = datetime.now()
     stdate=date.strftime( '%Y-%m-%d')
@@ -169,6 +170,9 @@ def graficopred(npred):
     fig = go.Figure(
         data=[go.Scatter(x=x, y=y, mode='lines+markers', name='prediccion')]
         )
+    fig.add_hline(y=15, line_dash="dot", row=3, col="all",
+              annotation_text="Riesgo de Brote", 
+              annotation_position="bottom right", line_color="red")
     
     # Update the chart in the HTML and return it
     return fig.to_json()
@@ -184,9 +188,11 @@ def grafico():
     x = [item['data_iniSE'] for item in data]
     y = [item['casos'] for item in data]
     print(y)
-    fig = go.Figure(layout=go.Layout(title='Número de casos de Leishmaniasis 2018 - 2022',yaxis=dict(title='n° casos'),xaxis=dict(title='Semana Epidemiologica')))
+    fig = go.Figure(layout=go.Layout(title='Número de casos de Leishmaniasis 2017 - 2022',yaxis=dict(title='n° casos'),xaxis=dict(title='Semana Epidemiologica')))
     fig.add_trace(go.Scatter(x=x, y=y, mode='lines',name='casos'))
-    
+    fig.add_hline(y=15, line_dash="dot", row=3, col="all",
+              annotation_text="Riesgo de Brote", 
+              annotation_position="bottom right", line_color="red")
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
     return graphJSON
 
@@ -203,9 +209,12 @@ def chart():
         y.append(item['casos'])
     # Create the chart object
     fig = go.Figure(
-        data=[go.Scatter(x=x, y=y)],
-        layout=go.Layout(title='Número de casos de Leishmaniasis 2018 - 2022',yaxis=dict(title='n° casos'),xaxis=dict(title='Semana Epidemiologica'))
+        data=[go.Scatter(x=x, y=y,name='casos')],
+        layout=go.Layout(title='Número de casos de Leishmaniasis 2017 - 2022',yaxis=dict(title='n° casos'),xaxis=dict(title='Semana Epidemiologica'))
     )
+    fig.add_hline(y=15, line_dash="dot", row=3, col="all",
+              annotation_text="Riesgo de Brote", 
+              annotation_position="bottom right", line_color="red")
     # Return the chart data as JSON
     return fig.to_json()
 
@@ -257,6 +266,9 @@ def loginin():
                 session["logged_in"]=True
                 session['username'] = username
                 return redirect(url_for('index'))
+            else:
+                error = 'Usuario y/o contraseña incorrectos. Intente de nuevo.'
+                return render_template('login.html', error=error)
         else:
             error = 'Usuario y/o contraseña incorrectos. Intente de nuevo.'
             return render_template('login.html', error=error)  
