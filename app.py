@@ -1,5 +1,4 @@
 from flask import Flask, request, render_template, Response, jsonify, redirect, url_for, session,make_response, send_file,render_template_string
-from flask_login import login_manager,login_required, current_user
 import pickle
 import json
 import numpy as np
@@ -98,18 +97,66 @@ def index():
 
 @app.route('/generate-pdf/<int:npred>',methods=['POST'])
 def generate_pdf(npred):
+
     collection=db['prediction']
+    sec_collection=db['prediction_ahead']
+
     last_data = collection.find_one(sort=[("data_iniSE", -1)])
+    met_data=sec_collection.find_one(sort=[("Precipitacion", -1)])
+
     init_Date=last_data.get('data_iniSE')
     init_case=[last_data.get('casos')]
+
+    init_temp=[met_data.get('Temperaturamin')]
     # process the data here
     weekly_dates = [init_Date + timedelta(weeks=x) for x in range(npred+1)]
     print(weekly_dates)
     pred=getnpred(npred)
     print(pred)
 
+    last_collections = db['prediction_ahead'].find().sort('_id', -1).limit(npred)
+
+    mintemp=[]
+    maxtemp=[]
+    avgtemp=[]
+    minhum=[]
+    maxhum=[]
+    avghum=[]
+    preci=[]
+    decimal_places = 2
+
+    # Convert and format each string in the list
+    
+
+    for document in last_collections:
+        variable1 = document['Temperaturamin']
+        variable2 = document['Temperaturamax']
+        variable3 = document['Temperaturamean']
+        variable4 = document['Humedadmin']
+        variable5 = document['Humedadmax']
+        variable6 = document['Humedadmean']
+        variable7 = document['Precipitacion']
+
+        mintemp.append(variable1)
+        maxtemp.append(variable2)
+        avgtemp.append(variable3)
+        minhum.append(variable4)
+        maxhum.append(variable5)
+        avghum.append(variable6)
+        preci.append(variable7)
+
+
+    maxtemp = [format(float(x), f".{decimal_places}f") for x in maxtemp]
+    mintemp = [format(float(x), f".{decimal_places}f") for x in mintemp]
+    avgtemp = [format(float(x), f".{decimal_places}f") for x in avgtemp]
+    minhum = [format(float(x), f".{decimal_places}f") for x in minhum]
+    maxhum = [format(float(x), f".{decimal_places}f") for x in maxhum]
+    avghum = [format(float(x), f".{decimal_places}f") for x in avghum]
+    preci = [format(float(x), f".{decimal_places}f") for x in preci]
+
     x=weekly_dates
-    y=init_case + pred
+    y=init_case + list(map(int, pred))
+    predcases=list(map(int, pred))
     fig = go.Figure(layout=go.Layout(title='Predicciones',yaxis=dict(title='n° casos'),xaxis=dict(title='Fecha')))    
     fig.add_trace(go.Scatter(x=x, y=y))
 
@@ -119,7 +166,8 @@ def generate_pdf(npred):
     Date_List = [x.strftime('%Y-%m-%d') for x in x]
     # Convert the image buffer to a base64-encoded string
     img_data = base64.b64encode(img_buf.getvalue()).decode('utf-8')
-    table_data = [['Fecha', 'Temp. Max.', 'Temp. Min.', 'Temp. Prom.', 'Hum. Max.','Hum. Min.', 'Hum. Prom.', 'Prediccion']] + list(zip(Date_List[1:], y))
+    table_data = [['Fecha', 'Temp. Max.', 'Temp. Min.', 'Temp. Prom.', 'Hum. Max.','Hum. Min.', 'Hum. Prom.','Precipitacion', 'Prediccion']] + list(zip(Date_List[1:],maxtemp,
+                                                                                                                                        mintemp,avgtemp,maxhum,minhum,avghum,preci, predcases))
     # Generate the HTML content for the PDF
     date = datetime.now()
     stdate=date.strftime( '%Y-%m-%d')
@@ -161,16 +209,15 @@ def graficopred(npred):
     print(weekly_dates)
     pred=getnpred(npred)
     print(pred)
-    
 
     x=weekly_dates
-    y=init_case + pred
+    y=init_case + list(map(int, pred))
     print(y)
     #trace=go.Scatter(x=x, y=y, mode='lines')
     fig = go.Figure(
         data=[go.Scatter(x=x, y=y, mode='lines+markers', name='prediccion')]
         )
-    fig.add_hline(y=15, line_dash="dot", row=3, col="all",
+    fig.add_hline(y=20, line_dash="dot", row=3, col="all",
               annotation_text="Riesgo de Brote", 
               annotation_position="bottom right", line_color="red")
     
@@ -190,7 +237,7 @@ def grafico():
     print(y)
     fig = go.Figure(layout=go.Layout(title='Número de casos de Leishmaniasis 2017 - 2022',yaxis=dict(title='n° casos'),xaxis=dict(title='Semana Epidemiologica')))
     fig.add_trace(go.Scatter(x=x, y=y, mode='lines',name='casos'))
-    fig.add_hline(y=15, line_dash="dot", row=3, col="all",
+    fig.add_hline(y=20, line_dash="dot", row=3, col="all",
               annotation_text="Riesgo de Brote", 
               annotation_position="bottom right", line_color="red")
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
@@ -212,7 +259,7 @@ def chart():
         data=[go.Scatter(x=x, y=y,name='casos')],
         layout=go.Layout(title='Número de casos de Leishmaniasis 2017 - 2022',yaxis=dict(title='n° casos'),xaxis=dict(title='Semana Epidemiologica'))
     )
-    fig.add_hline(y=15, line_dash="dot", row=3, col="all",
+    fig.add_hline(y=20, line_dash="dot", row=3, col="all",
               annotation_text="Riesgo de Brote", 
               annotation_position="bottom right", line_color="red")
     # Return the chart data as JSON
