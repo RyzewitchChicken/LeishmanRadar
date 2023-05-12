@@ -241,11 +241,16 @@
               var blob = new Blob([this.response], {type: 'application/pdf'});
               var link = document.createElement('a');
               link.href = window.URL.createObjectURL(blob);
-              link.download = 'chart.pdf';
+              var currentDate = new Date();
+              // Format the date as YYYY-MM-DD
+              var formattedDate = currentDate.toISOString().slice(0, 10);
+              link.download = 'Reporte_'+formattedDate+'.pdf';
               link.click();
+              document.getElementById("reportbutton").disabled = true;
           }
       };
-      xhr.send();
+
+      xhr.send(); 
   }
 </script>
 
